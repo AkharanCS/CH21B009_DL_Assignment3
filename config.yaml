@@ -1,0 +1,23 @@
+method: bayes 
+
+metric:
+  name: val_accuracy  
+  goal: maximize 
+
+parameters:
+  in_embed:
+    values: [64,128,256]
+  encoder_layers:
+    values: [1,2,3]
+  decoder_layers:
+    values: [1,2,3]
+  hidden_size:
+    values: [64,128,256]
+  cell_type:
+    values: ["RNN", "LSTM", "GRU"]
+  dropout:
+    values: [0.2,0.3]
+ 
+early_terminate:
+  type: hyperband  # Stops bad runs early
+  min_iter: 3  # Minimum iterations before stopping underperforming runs
