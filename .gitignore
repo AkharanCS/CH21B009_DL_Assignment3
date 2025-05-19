@@ -1,5 +1,5 @@
 wandb/
 venv/
 dakshina_dataset_v1.0/
-__pychache__/
+__pycache__/
 *.tar

@@ -3,12 +3,21 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from functools import partial
-import pandas as pd
-
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib import font_manager
+import seaborn as sns
+import wandb
 
 from prepare import TransliterationDataset,collate_fn,build_vocab
 from Q5 import Encoder,Decoder,Seq2Seq,Attention
 
+# Download the devanagari font using this command before running:
+# wget -q https://github.com/googlefonts/noto-fonts/raw/main/hinted/ttf/NotoSansDevanagari/NotoSansDevanagari-Regular.ttf -O NotoSansDevanagari-Regular.ttf
+
+# Register the downloaded font
+font_path = "./NotoSansDevanagari-Regular.ttf"
+devanagari_font = font_manager.FontProperties(fname=font_path)
 
 # Loading the dataset
 BATCH_SIZE = 32
@@ -77,66 +86,40 @@ for epoch in range(EPOCHS):
 
 
 
-## Getting predictions for the test dataset and storing it in a folder
+## Plotting the attention heatmap for 9 samples
+data_iter = iter(test_loader)
+latin, hindi = next(data_iter)
 
-latin_texts_test = []
-labels_test = []
-preds_test = []
-
-with torch.no_grad():
-    for src_batch, trg_batch in test_loader:
-        src_batch = src_batch.to(device)
-        trg_batch = trg_batch.to(device)
-
-        output = model(src_batch, trg_batch, teacher_forcing_ratio=0.0)
-        # output shape: [batch, trg_len, vocab_size]
-
-        batch_size, trg_len, vocab_size = output.shape
-
-        output = output[:, 1:].contiguous()  # skip <sos> token in predictions
-        src = src_batch[:, :]
-        trg = trg_batch[:, 1:]
-
-        output_flat = output.view(-1, vocab_size)
-        trg_flat = trg.contiguous().view(-1)
-
-        # For accuracy: get top predictions
-        pred_ids = output.argmax(dim=-1)  # [batch, trg_len-1]
-
-        # Compare whole sequences
-        for latin_seq, pred_seq, true_seq in zip(src, pred_ids, trg):
-            # Remove padding and eos if desired
-            special_tokens = {trg_stoi['<pad>'], trg_stoi['<sos>'], trg_stoi['<eos>']}
-            latin_seq_trimmed = [t.item() for t in latin_seq if t.item() not in special_tokens]
-            pred_seq_trimmed = [t.item() for t in pred_seq if t.item() not in special_tokens]
-            true_seq_trimmed = [t.item() for t in true_seq if t.item() not in special_tokens]
-            latin_texts_test.append(latin_seq_trimmed)
-            labels_test.append(true_seq_trimmed)
-            preds_test.append(pred_seq_trimmed)
+# Taking the first 9 samples
+latin = latin[:9]
+hindi = hindi[:9]
 
 
-# Converting list of tokens to strings
-for i in range(len(preds_test)):
-    for j in range(len(preds_test[i])):
-        preds_test[i][j] = trg_itos[preds_test[i][j]]
-    preds_test[i] = "".join(preds_test[i])
+plt.figure(figsize=(15, 15))
+for idx in range(len(latin)):
+    src_tensor = latin[idx]
+    src_tokens = [src_itos[i.item()] for i in src_tensor if i.item() not in (trg_stoi['<pad>'],)]
 
-for i in range(len(labels_test)):
-    for j in range(len(labels_test[i])):
-        labels_test[i][j] = trg_itos[labels_test[i][j]]
-    labels_test[i] = "".join(labels_test[i])
+    output, attentions = model.predict(src_tensor, trg_stoi)
+    trg_tokens = [trg_itos[i] for i in output]
 
-for i in range(len(latin_texts_test)):
-    for j in range(len(latin_texts_test[i])):
-        latin_texts_test[i][j] = src_itos[latin_texts_test[i][j]]
-    latin_texts_test[i] = "".join(latin_texts_test[i])
+    ax = plt.subplot(3, 3, idx + 1)
+    attn_matrix = np.stack(attentions)
 
-# Creating a DataFrame with test predictions
-df = pd.DataFrame({
-    "latin": latin_texts_test,
-    "label": labels_test,
-    "prediction": preds_test  # remove this column if not needed
-})
+    sns.heatmap(attn_matrix, xticklabels=src_tokens, yticklabels=trg_tokens, cmap="viridis", ax=ax)
 
-# Saving as TSV in a predictions_vanilla
-df.to_csv("predictions_attention/test_predictions_attn.tsv", sep="\t", index=False)
+    # Setting Devanagari font for axis tick labels
+    ax.set_xticklabels(src_tokens, rotation=45, ha="right")
+    ax.set_yticklabels(trg_tokens, fontproperties=devanagari_font, rotation=0)
+
+    ax.set_xlabel("Input")
+    ax.set_ylabel("Output")
+    ax.set_title(f"Sample {idx+1}")
+
+plt.tight_layout()
+plt.savefig('attention_heatmap.png')
+plt.show()
+
+# Logging the heatmap to wandb
+wandb.init(project="Assignment3_Q5_heatmap")
+wandb.log({"attention_heatmap": wandb.Image('attention_heatmap.png')})

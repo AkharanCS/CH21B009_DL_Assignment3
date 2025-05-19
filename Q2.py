@@ -17,7 +17,6 @@ def train():
     # Getting all the configurations
     config = wandb.config
     
-    # 3. Initialize model
     INPUT_DIM = len(src_stoi)
     OUTPUT_DIM = len(trg_stoi)
     EMB_DIM = config.in_embed
@@ -31,6 +30,7 @@ def train():
     wandb.run.name = f"Input_embedding{EMB_DIM}_Hidden_dimension_{HID_DIM}_enc_layers_{N_ENC_LAYERS}_dec_layers_{N_DEC_LAYERS}_cell_type_{CELL_TYPE}_dropout_{DROPOUT}"
     wandb.run.save()
 
+    # Initializing the model
     EPOCHS = 10
     LEARNING_RATE = 0.0001
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -39,11 +39,11 @@ def train():
     decoder = Decoder(OUTPUT_DIM, EMB_DIM, HID_DIM, N_DEC_LAYERS, DROPOUT, cell_type=CELL_TYPE)
     model = Seq2Seq(encoder, decoder, cell_type=CELL_TYPE).to(DEVICE)
 
-    # 4. Define loss & optimizer
+    # Defining loss & optimizer
     criterion = nn.CrossEntropyLoss(ignore_index=trg_stoi['<pad>'])
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
-    # 5. Training loop
+    # Training loop
     epo = []
     val_loss = []
     val_accuracy = []
@@ -99,7 +99,7 @@ if __name__ == "__main__":
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate)
     dev_loader = DataLoader(dev_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate)
     test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate)
-
+    
     with open("config.yaml", "r") as file:
         sweep_config = yaml.safe_load(file)
 

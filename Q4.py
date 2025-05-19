@@ -11,7 +11,6 @@ from prepare import TransliterationDataset,collate_fn,build_vocab
 from Q1 import Encoder,Decoder,Seq2Seq
 
 
-
 # Loading the dataset
 BATCH_SIZE = 32
 train_dataset = TransliterationDataset('dakshina_dataset_v1.0\hi\lexicons\hi.translit.sampled.train.tsv')
@@ -112,12 +111,12 @@ with torch.no_grad():
     output_flat = output.view(-1, vocab_size)
     trg_flat = trg.contiguous().view(-1)
 
-    # For accuracy: get top predictions
+    # For accuracy: getting top predictions
     pred_ids = output.argmax(dim=-1)  # [batch, trg_len-1]
 
-    # Compare whole sequences
+    # Comparing whole sequences
     for latin_seq, pred_seq, true_seq in zip(src, pred_ids, trg):
-        # Remove padding and eos if desired
+        # Removing padding and eos if desired
         special_tokens = {trg_stoi['<pad>'], trg_stoi['<sos>'], trg_stoi['<eos>']}
         latin_seq_trimmed = [t.item() for t in latin_seq if t.item() not in special_tokens]
         pred_seq_trimmed = [t.item() for t in pred_seq if t.item() not in special_tokens]
@@ -144,7 +143,7 @@ for i in range(len(latin_texts)):
     latin_texts[i] = "".join(latin_texts[i])
 
 
-# Making a classification table
+# Making a prediction table
 table = wandb.Table(columns=["Latin Text", "Correct Hindi Transliteration", "Predicted Hindi Transliteration", "Result", "Number of Mismatched Characters"])
 
 for eng, true_label, pred_label in zip(latin_texts, labels, preds):
@@ -156,10 +155,9 @@ for eng, true_label, pred_label in zip(latin_texts, labels, preds):
     for i in range(min_len):
         if true_label[i] != pred_label[i]:
             count += 1
-    #print(eng,true_label,pred_label,status)
     table.add_data(eng,true_label,pred_label,status,count)
 
-# Logging the classification table
+# Logging the prediction table
 wandb.log({"Model Predictions": table})
 
 

@@ -54,6 +54,8 @@ class Seq2Seq(nn.Module):
         outputs = torch.zeros(batch_size, trg_len, trg_vocab_size).to(src.device)
 
         hidden = self.encoder(src)
+
+        # Matching output of encoder with what the decoder expects
         if self.decoder.rnn.num_layers > self.encoder.rnn.num_layers:
             diff = self.decoder.rnn.num_layers - self.encoder.rnn.num_layers
             if isinstance(hidden, tuple):  # LSTM
@@ -73,9 +75,8 @@ class Seq2Seq(nn.Module):
             else:  # RNN or GRU
                 hidden = hidden[:self.decoder.rnn.num_layers]
 
-        # Initialize decoder input with <sos> token
+        # Initializing decoder input with <sos> token
         input = trg[:, 0]
-
         for t in range(1, trg_len):
             output, hidden = self.decoder(input, hidden)
             outputs[:, t] = output
@@ -87,12 +88,6 @@ class Seq2Seq(nn.Module):
         return outputs
     
     def predict(self, src, trg_stoi, max_len=50):
-        """
-        Predict output sequence for a single source sequence tensor.
-        
-        src: Tensor shape [seq_len] or [1, seq_len]
-        Returns: list of predicted token indices (excluding <sos>)
-        """
         self.eval()
         device = next(self.parameters()).device
         if src.dim() == 1:
@@ -103,6 +98,25 @@ class Seq2Seq(nn.Module):
 
         with torch.no_grad():
             hidden = self.encoder(src)
+            # Matching output of encoder with what the decoder expects
+            if self.decoder.rnn.num_layers > self.encoder.rnn.num_layers:
+                diff = self.decoder.rnn.num_layers - self.encoder.rnn.num_layers
+                if isinstance(hidden, tuple):  # LSTM
+                    h, c = hidden
+                    h = torch.cat([h] + [torch.zeros_like(h[0:1]) for _ in range(diff)], dim=0)
+                    c = torch.cat([c] + [torch.zeros_like(c[0:1]) for _ in range(diff)], dim=0)
+                    hidden = (h, c)
+                else:  # RNN or GRU
+                    hidden = torch.cat([hidden] + [torch.zeros_like(hidden) for _ in range(diff)], dim=0)
+
+            if self.encoder.rnn.num_layers > self.decoder.rnn.num_layers:
+                if isinstance(hidden, tuple):  # LSTM
+                    h, c = hidden
+                    h = h[:self.decoder.rnn.num_layers]
+                    c = c[:self.decoder.rnn.num_layers]
+                    hidden = (h, c)
+                else:  # RNN or GRU
+                    hidden = hidden[:self.decoder.rnn.num_layers]
 
             input_tok = torch.tensor([trg_stoi['<sos>']], device=device)  # start token
             outputs = []
@@ -137,7 +151,7 @@ class Seq2Seq(nn.Module):
 
                 batch_size, trg_len, vocab_size = output.shape
 
-                output = output[:, 1:].contiguous()  # skip <sos> token in predictions
+                output = output[:, 1:].contiguous()  # skipping <sos> token in predictions
                 trg = trg_batch[:, 1:]
 
                 output_flat = output.view(-1, vocab_size)
@@ -152,12 +166,10 @@ class Seq2Seq(nn.Module):
 
                 # Compare whole sequences
                 for pred_seq, true_seq in zip(pred_ids, trg):
-                    # Remove padding and eos if desired
+                    # Remove padding and eos before loss calculation
                     special_tokens = {trg_stoi['<pad>'], trg_stoi['<sos>'], trg_stoi['<eos>']}
                     pred_seq_trimmed = [t.item() for t in pred_seq if t.item() not in special_tokens]
                     true_seq_trimmed = [t.item() for t in true_seq if t.item() not in special_tokens]
-                    #print(pred_seq,true_seq)
-                    #print(pred_seq_trimmed,true_seq_trimmed)
                     if pred_seq_trimmed == true_seq_trimmed:
                         correct_sequences += 1
 

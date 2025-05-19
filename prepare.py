@@ -3,6 +3,7 @@ from torch.utils.data import Dataset
 from torch.nn.utils.rnn import pad_sequence
 import pandas as pd
 
+# Function for building a vocabulary for both english and devanagari
 def build_vocab(sequences):
     vocab = set(char for seq in sequences for char in seq)
     stoi = {char: idx + 3 for idx, char in enumerate(sorted(vocab))}
@@ -12,6 +13,7 @@ def build_vocab(sequences):
     itos = {i: s for s, i in stoi.items()}
     return stoi, itos
 
+# Dataset Class
 class TransliterationDataset(Dataset):
     def __init__(self, tsv_path):
         df = pd.read_csv(tsv_path, sep='\t', header=None)
@@ -24,13 +26,14 @@ class TransliterationDataset(Dataset):
     def __getitem__(self, idx):
         return self.latin[idx], self.hindi[idx]  # (src, trg)
 
-
+# Function to truncate a sequence at <eos>
 def truncate_at_eos(seq, eos_idx):
     if eos_idx in seq:
         idx = seq.index(eos_idx) + 1
         return seq[:idx]
     return seq
 
+# Function for tokenizing and padding a batch 
 def collate_fn(batch, src_vocab, trg_vocab):
     src_seqs, trg_seqs = zip(*batch)
     src_tensor_list = []
