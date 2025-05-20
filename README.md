@@ -2,7 +2,7 @@
 
 ## Important Links
 - **Link to GitHub Repo** : <https://github.com/AkharanCS/CH21B009_DL_Assignment3>
-- **Link to wandb report** : <https://api.wandb.ai/links/ch21b009-indian-institute-of-technology-madras/66zm1dc9>
+- **Link to wandb report** : <https://wandb.ai/ch21b009-indian-institute-of-technology-madras/Assignment3_Q5/reports/DA6401-Assignment-3-Report--VmlldzoxMjgyNzU1MA?accessToken=hf0u4cqvukop88avyqy82k8ztmy80fb8r1m41141dxx3q0l6v3emy33yrze5yjdc>
 
 ## Directories
 - **predictions_attention**: contains the predictions for the test dataset made by the attention based seq2seq model.
